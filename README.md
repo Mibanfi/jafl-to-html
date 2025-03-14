@@ -26,6 +26,8 @@ Clone this repository, or download the zip file from Releases.
     - Alternatively: press Ctrl + P.
 - Save it as pdf.
 - Ta-da! Now you have a pdf. ***Section links still work!***
+### What about the character sheet?
+- The character sheet (plus a bunch of other goodies) can be downloaded from the [publisher's official website](http://www.sparkfurnace.com/fabled-lands/fl-extras/).
 
 ## Optional features
 ### Adding a cover image
