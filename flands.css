@@ -1,0 +1,150 @@
+@media print {
+    .page {
+        margin: 40;
+        padding: 40;
+        break-after: page;
+    }
+
+    @page {
+        margin: 0 !important;
+    }
+
+    table {
+        width: 100% !important;
+    }
+
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    img {
+        width: 100% !important;
+        height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        break-after: page;
+    }
+}
+
+:not(:is(h1, h2, h3, h4)) {
+    text-align: justify;
+    font-size: large;
+}
+
+table {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+footer table {
+    min-height: 10%;
+    width: 20%;
+    outline: solid;
+    table-layout: fixed;
+}
+
+footer table th {
+    text-align: center;
+    width: 100%;
+}
+
+footer table td {
+    text-align: center;
+    width: 100%
+}
+
+img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 100;
+    max-width: 100%
+}
+
+h1, h2, h3 {
+    text-align: center;
+}
+
+.section-title {
+    text-align: center;
+    text-decoration: underline;
+    font-size: x-large;
+}
+
+.tickboxes {
+    font-size: x-large;
+}
+
+.choices, .outcomes {
+    border-spacing: 20
+}
+
+.fight {
+    display: table;
+    padding: 10;
+    table-layout: fixed;
+    width: 50%;
+}
+
+.fight td {
+    text-align: center;
+    font-weight: bold;
+    width: 100%;
+}
+
+.fight th {
+    text-align: center;
+    font-weight: bold;
+    font-size: larger;
+    width: 100%;
+}
+
+.resurrection {
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.stats-sheet {
+    display: table;
+    padding: 10;
+    table-layout: fixed;
+    width: 50%;
+}
+
+.stats-sheet td {
+    outline: solid;
+    text-align: center;
+    text-transform: capitalize;
+}
+
+.stats-sheet th {
+    outline: solid;
+    text-align: center;
+    text-transform: capitalize;
+    font-weight: bold;
+    background-color: lightgrey;
+}
+
+.market {
+    display: table;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 10;
+    table-layout: fixed;
+    width: 80%;
+}
+
+.market td {
+    outline: solid;
+    text-align: center;
+    text-transform: capitalize;
+}
+
+.market th {
+    outline: solid;
+    text-align: center;
+    text-transform: capitalize;
+    font-weight: bold;
+    background-color: lightgrey;
+}
