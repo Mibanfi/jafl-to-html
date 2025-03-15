@@ -41,7 +41,7 @@ const FORMAT_ATTACHMENT =
 const HEAD =
 `<head>
 	<link rel="stylesheet" href="flands.css">
-	<link rel="stylesheet" href="font-settings.css"
+	<link rel="stylesheet" href="font-settings.css">
 </head>`
 
 const COVER = "Cover.jpg"
