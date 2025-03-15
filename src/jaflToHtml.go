@@ -35,11 +35,13 @@ const (
 const FORMAT_ATTACHMENT =
 `
 <img src="%s" id="%s"></img>
+
 `
 
 const HEAD =
 `<head>
 	<link rel="stylesheet" href="flands.css">
+	<link rel="stylesheet" href="font-settings.css"
 </head>`
 
 const COVER = "Cover.jpg"
@@ -49,13 +51,11 @@ const SHEET1_NAME = "sheet1.jpg"
 const SHEET2_NAME = "sheet2.jpg"
 const SHEET_PDF_NAME = "Sheet.pdf"
 
-const FOOTER =
-`<div class="footer">
+const MENU =
+`<div class="menu">
 	<table>
 		<tr>
 			<th colspan="2">View Character Sheet</th>
-		</tr>
-		<tr>
 			<td colspan="1"><a href="#sheet1">Page 1</a></td>
 			<td colspan="1"><a href="#sheet2">Page 2</a></td>
 		</tr>
@@ -153,13 +153,13 @@ func main() {
 			case DESIRED_EXT:
 				page, errParse := parse(fn)
 				check(errParse)
+				if *addSheet {
+					content = slices.Concat(content, []byte(MENU))
+				}
 				content = slices.Concat(content, []byte(page))
 				fmt.Println("done!")
 			default:
 				fmt.Println("ignored")
-			}
-		if *addSheet {
-			content = slices.Concat(content, []byte(FOOTER))
 		}
 	}
 
@@ -942,7 +942,7 @@ const STATS_FORMAT =	// p.Name, p.Abilities..., p.Stamina, p.Rank, p.Gold, start
 </table>`
 const STARTING_EQUIP_FORMAT =
 `<tr class="equipment-value">
-<td class="equipment-item-type" colspan="2">%s</td>
+<th class="equipment-item-type" colspan="2">%s</td>
 <td class="equipment-item-name" colspan="4">%s</td>
 </tr>`
 func printStats(name string) string {
