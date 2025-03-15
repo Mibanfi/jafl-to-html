@@ -502,302 +502,300 @@ func (e element) String() (output string) {
 
 // THE GREAT REPLACING GALORE
 
-const GOTO_FORMAT =	// in.Attributes["section"], content
-`<a href="#%s">%s</a>`
-const GOTO_AUTOFILL =
-`turn to %s`		// in.Attributes["section"]
-
-const SECTION_FORMAT =	// id, in.Attributes["name"], tickboxes, in.Content	// Classes: page
-`
-<div class="page">
-	<h2 id="%s"><span class="section-title">%s</span><span class="tickboxes">%s</span></h2>
-	%s
-</div>
-`
 const TICKBOX = "◻"
 
-const CHOICES_FORMAT =	// in.Content	// Classes: choices
-`<table class="choices">
+const FMT_SECTION =
+`
+<div class="page">
+<h2 id="%s"><span class="section-title">%s</span><span class="tickboxes">%s</span></h2>
+%s
+</div>
+`
+
+const FMT_LINK =
+`<a href="%s">%s</a>`
+
+const FMT_TURNTO =
+`<span class="turn-to">► Turn to %s</span>`
+
+const FMT_SHOPITEM =
+`<tr class="shop-item">
+	<td colspan="4" class="shop-item-name">%s</td>
+	<td colspan="1" class="shop-item-buy-price">%s</td>
+	<td colspan="1" class="shop-item-sell-price">%s</td>
+</tr>`
+
+const FMT_SHOPHEADER =
+`<tr class="shop-header">
+<th colspan="4">Item</th>
+<th colspan="1">Buy Price</th>
+<th colspan="1">Sell Price</th>
+</tr>`
+
+const FMT_HEADER =
+`<tr>
+<th colspan="6">%s</th>
+</tr>`
+
+const FMT_BRANCHOPTION =
+`<tr class="branch-option">
+	<td>%s</td>
+	<td>%s</td>
+</tr>`
+
+const FMT_TABLE =
+`<table class="%s">
 %s
 </table>`
 
-const CHOICE_FORMAT =	// in.Content, in.Attributes["section"], in.Attributes["section"]	// Classes: choice-text, choice-selection
-`	<tr>
-		<td class="choice-text">%s</td>
-		<td class="choice-section"><a href="#%s">► turn to %s</a></td>
-	</tr>`
+const FMT_RESURRECTION =
+`<span class="resurrection">Resurrection of %s: Book %s, Section %s (%s)</span>`
 
-const DIFFICULTY_FORMAT =	// in.Attributes["ability"], in.Attributes["difficulty"]	// Classes: ability, difficulty
-`Make an ability check on your <span class="ability">%s</span> with difficulty <span class="difficulty">%s</span>`
+const FMT_ROLL =
+`roll %s dice`
 
-const RANDOM_FORMAT =	// dice	// Classes: random
-`<span class="random">Roll %s dice.</span>`
-
-const RANKCHECK_FORMAT =	// dice	// Classes: rankcheck
-`<span class="rankcheck">Roll %s dice and try to score lower than your Rank</span>`
-
-const OUTCOMES_FORMAT =
-`<table class="outcomes">
-%s
-</table>`
-
-const OUTCOME_FORMAT =
-`	<tr>
-		<td class="outcome-text">%s</td>
-		<td class="outcome-section">%s</td>
-	</tr>`
-
-const EQUIPMENT_FORMAT =	// in.Attributes["name"]	// Classes: weapon
-`<span class="weapon">%s</span>`
-
-const LOSE_FORMAT =	// content	// Classes: lose
-`<span class="lose">%s</span>`
-const LOSE_AUTOFILL =	// amount, name
-`lose %s %s`
-
-const GAIN_FORMAT =	// content	// Classes: gain
-`<span class="gain">%s</span>`
-const GAIN_AUTOFILL =	// amount, name
-`gain %s %s`
-
-const P_FORMAT =	// in.Name, in.Content
-`<p class="%s">
-	%s
-</p>`
-
-const SPAN_FORMAT =	// in.Name, in.Content
-` <span class="%s">%s</span>`
+const FMT_CHECK =
+`make a %s check against a difficulty of %s`
 
 type Group struct {
 	Text string `xml:",innerxml"`
 }
 
-const FIGHT_FORMAT =	// , in.Attributes["name], in.Attributes["combat"], in.Attributes["defence"], in.Attributes["stamina"]	// Classes: a lot
-`<table class="fight">
-	<tr class="fight-header">
-		<th colspan="3" class="fight-name">%s</th>
-	</tr>
-	<tr class="fight-stats">
-		<td class="fight-combat">Combat: %s</td>
-		<td class="fight-defence">Defence: %s</td>
-		<td class="fight-stamina">Stamina: %s</td>
-	</tr>
-</table>`
-
-const RESURRECTION_FORMAT =	// Classes: resurrection
-`<span class="resurrection">%s</span>`
-const RESURRECTION_AUTOFILL =	// in.Attributes["god"], in.Attributes["book"], in.Attributes["section"], in.Attributes["text"]
-`Resurrection of %s: Book %s, Section %s (%s)`
-
-const MARKET_FORMAT =
-`<table class="market">
-	<tr class="market-header-top">
-		<th colspan="4">Item</th>
-		<th colspan="1">Buy Price</th>
-		<th colspan="1">Sell Price</th>
-	</tr>
-%s
-</table>`
-const MARKET_HEADER_FORMAT =
-`<tr>
-	<th colspan="6">%s</th>
-</tr>`
-const EQUIPMENT_MAKET_FORMAT =
-`<tr class="market-item">
-	<td class="market-item-name" colspan="4">%s</td>
-	<td class="market-item-buy" colspan="1">%s</td>
-	<td class="market-item-sell" colspan="1">%s</td>
-</tr>`
-
-func replace(in element) (out string) {
-	if in.Attributes["hidden"] == "t" {
-		out = ""
+func replace(e element) (out string) {
+	// Remove hidden tags
+	if e.Attributes["hidden"] == "t" {
 		return
 	}
-	switch in.Name {
-		case "goto":
-			var content string
-			if in.Content == "" {
-				content = fmt.Sprintf(GOTO_AUTOFILL, in.Attributes["section"])
-			} else {
-				content = in.Content
-			}
-			if _, ok := in.Attributes["book"]; ok {
-				out = fmt.Sprintf(GOTO_FORMAT, "", content)
-			} else {
-				out = fmt.Sprintf(GOTO_FORMAT, in.Attributes["section"], content)
-			}
+
+	switch e.Name {
+
+		// SECTION REPLACEMENT ----------------------------------------------------
 		case "section":
 			var tickboxes string
 			var id string
 			var boxCount int
 			var ok bool
-			if _, ok = in.Attributes["boxes"]; ok {
-				boxCount, _ = strconv.Atoi(in.Attributes["boxes"])
+			if _, ok = e.Attributes["boxes"]; ok {
+				boxCount, _ = strconv.Atoi(e.Attributes["boxes"])
 				for i := 0; i < boxCount; i++ {
 					tickboxes += " " + TICKBOX
 				}
 			}
-			if profession, ok := in.Attributes["profession"]; ok {
-				in.Content = (printStats(profession) + in.Content)
-				id = strings.Fields(in.Attributes["name"])[0]
+			if profession, ok := e.Attributes["profession"]; ok {
+				e.Content = (printStats(profession) + e.Content)
+				id = strings.Fields(e.Attributes["name"])[0]
 			} else {
-				id = in.Attributes["name"]
+				id = e.Attributes["name"]
 			}
-			out = fmt.Sprintf(SECTION_FORMAT, id, in.Attributes["name"], tickboxes, in.Content)
-		case "choices":
-			out = fmt.Sprintf(CHOICES_FORMAT, in.Content)
-		case "choice":
-			out = fmt.Sprintf(CHOICE_FORMAT, in.Content, in.Attributes["section"], in.Attributes["section"])
-		case "outcomes":
-			out = fmt.Sprintf(OUTCOMES_FORMAT, in.Content)
-		case "outcome":
-			var content string
-			if in.Content == "" {
-				content = fmt.Sprintf(GOTO_FORMAT, in.Attributes["section"], in.Attributes["section"])
+			out = fmt.Sprintf(FMT_SECTION, id, e.Attributes["name"], tickboxes, e.Content)
+
+		// ------------------------------------------------------------------------
+
+		// ITEM REPLACEMENT -------------------------------------------------------
+
+		// If the tag is an item, we need to assemble the item's name.
+		// Then we'll decide whether to display it as a shop item or a pickup
+		case "weapon", "armor", "item", "tool", "ship", "cargo", "buy", "sell", "trade", "gain", "lose":
+			var name string
+			classItem := []string{"weapon", "armor", "item", "tool", "ship", "cargo", "buy", "sell", "trade", "gain", "lose", "shards", "stamina", "rank", "ability"}
+			// If the tag has content, that content will always override anything else.
+			if e.Content != "" {
+				name = e.Content
 			} else {
-				content = in.Content
-			}
-			out = fmt.Sprintf(OUTCOME_FORMAT, in.Attributes["range"], content)
-		case "success", "failure":
-			var content string
-			if in.Content == "" {
-				content = fmt.Sprintf(GOTO_FORMAT, in.Attributes["section"], in.Attributes["section"])
-			} else {
-				content = in.Content
-			}
-			out = fmt.Sprintf(OUTCOME_FORMAT, capitalize(in.Name), content)
-		case "difficulty":
-			out = fmt.Sprintf(DIFFICULTY_FORMAT, in.Attributes["ability"], in.Attributes["level"])
-		case "rankcheck":
-			out = fmt.Sprintf(RANKCHECK_FORMAT, in.Attributes["dice"])
-		case "random":
-			var dice string
-			var ok bool
-			if dice, ok = in.Attributes["dice"]; !ok {
-				dice = "2"
-			}
-			if in.Content == "" {
-				out = fmt.Sprintf(RANDOM_FORMAT, dice)
-			} else {
-				out = in.Content
-			}
-		case "weapon", "armor", "item", "tool":
-			if in.Content == "" {
-				var name string
-				name = in.Attributes["name"]
+				// Otherwise, we must first find the base name (before any modifiers).
+				// Let's check if there is a name attribute (the most straightforward way.)
+				name, _ = e.Attributes["name"]
+				// Some tags, especially 'trade' tags, instead have the name inside an attribute called like its type
+				// Also, the 'crew' attribute exists but, when displaying the item, it is always bypassed in favor of its price in 'shards'.
+				// So in the 'buy' and 'sell' tags, every item displays its name, EXCEPT for crews, which display the price
+				// There is no logic in this
 				if name == "" {
-					name = capitalize(in.Name)
-				}
-				if bonus, ok := in.Attributes["bonus"]; ok {
-					if ability, ok := in.Attributes["ability"]; ok {
-						name += fmt.Sprintf(" (+%s to %s rolls)", bonus, ability)
-					} else {
-						name += fmt.Sprintf(" (+%s)", bonus)
+					for k, v := range e.Attributes {
+						if slices.Contains(classItem, k) {
+							name = v
+						}
+					}
+					// Some rare cases do not have a name at all, and instead inherit it from their tag name.
+					// It is weird, I know, but some items in this game are generic so that you can flavour them as you like, especially weapons.
+					if name == "" {
+						name = e.Name
 					}
 				}
-				if sell, ok := in.Attributes["sell"]; ok {
-					buy := in.Attributes["buy"]
-					if buy == "" {
-						buy = "-"
+
+				// Now that we have found the base name, we must attach any attributes it may have
+				for k, v := range e.Attributes {
+					var attributes string
+					// Ships have a 'capacity' value that is not specified in tags because the game's internal logic keeps track of it
+					switch name {
+						case "barque":
+							attributes += "capacity: 1, "
+						case "brigantine":
+							attributes += "capacity: 2, "
+						case "galleon":
+							attributes += "capacity: 3, "
 					}
-					out = fmt.Sprintf(EQUIPMENT_MAKET_FORMAT, name, buy, sell)
-				} else {
-					out = fmt.Sprintf(EQUIPMENT_FORMAT, name)
+					switch k {
+						case "initialCrew":
+							attributes += "initial crew: " + v + ", "
+						case "bonus":
+							attributes += "+" + v
+						case "ability":
+							attributes += "to " + v
+					}
+					if attributes != "" {
+						attributes = strings.TrimSuffix(attributes, ", ")
+						name += " (" + attributes + ")"
+					}
 				}
-			} else {
-				out = in.Content
-			}
-		case "lose":
-			var content string
-			if in.Content == "" {
-				var name, amount string
-				for name, amount = range in.Attributes {
-					break
-				}
-				content = fmt.Sprintf(LOSE_AUTOFILL, amount, name)
-			} else {
-				content = in.Content
-			}
-			out = fmt.Sprintf(LOSE_FORMAT, content)
-		case "gain":
-			var content string
-			if in.Content == "" {
-				var name, amount string
-				for name, amount = range in.Attributes {
-					break
-				}
-				content = fmt.Sprintf(GAIN_AUTOFILL, amount, name)
-			} else {
-				content = in.Content
-			}
-			out = fmt.Sprintf(GAIN_FORMAT, content)
-		case "buy", "sell":
-			var content string
-			var ok bool
-			if in.Content == "" {
-				if content, ok = in.Attributes["item"]; !ok {
-					content = in.Attributes["shards"] + " shards"
-				}
-			} else {
-				content = in.Content
-			}
-			out = fmt.Sprintf(SPAN_FORMAT, in.Name, content)
-		case "market":
-			out = fmt.Sprintf(MARKET_FORMAT, in.Content)
-		case "header":
-			out = fmt.Sprintf(MARKET_HEADER_FORMAT, in.Attributes["type"])
-		case "trade":
-			var name, buy, sell string
-			var ok bool
-			if name, ok = in.Attributes["ship"]; ok {
-				if crew, ok := in.Attributes["initialCrew"]; ok {
-					name += " (initial crew: " + crew + ")"
-				}
-			} else if name, ok = in.Attributes["cargo"]; !ok {
-				for _, name = range in.Attributes {
-					break
-				}
-			}
-			if sell, ok = in.Attributes["sell"]; !ok {
-				sell = "-"
-			}
-			if buy, ok = in.Attributes["buy"]; !ok {
-				buy = "-"
-			}
-			out = fmt.Sprintf(EQUIPMENT_MAKET_FORMAT, name, buy, sell)
-		case "group":
-			var group Group
-			xml.Unmarshal([]byte(in.Content), &group)
-			out = group.Text
-		case "fight":
-			out = fmt.Sprintf(FIGHT_FORMAT, in.Attributes["name"], in.Attributes["combat"], in.Attributes["defence"], in.Attributes["stamina"])
-		case "resurrection":
-			var content string
-			if in.Content == "" {
-				content = fmt.Sprintf(RESURRECTION_AUTOFILL, in.Attributes["god"], in.Attributes["book"], in.Attributes["section"], in.Attributes["text"])
-			} else {
-				content = in.Content
-			}
-			out = fmt.Sprintf(RESURRECTION_FORMAT, content)
-		case "p", "text":
-			out = in.String()
-		case "if":
-			out = fmt.Sprintf(P_FORMAT, in.Name, in.Content)
-		case "adjust":
-			out = ""
-		case "tick":
-			if in.Content == "" {
-				out = fmt.Sprintf(SPAN_FORMAT, in.Name, "tick the box")
-			} else {
-				out = fmt.Sprintf(SPAN_FORMAT, in.Name, in.Content)
-			}
-		default:
-			if *verbose {
-				fmt.Println("Unexpected XML tag:", in.Name)
 			}
 
-			out = fmt.Sprintf(SPAN_FORMAT, in.Name, in.Content)
+			// Done! Now we must decide to format it either as a shop item or a pickup.
+			// Fortunately for us, shop items are easily recognizable as they have a 'buy' or 'sell' attribute containing their price.
+			// In fact, 'buy' and 'sell' tags use an attribute called 'shards' to record their price.
+			// Sounds confusing? It is
+			buy, ok1 := e.Attributes["buy"]
+			sell, ok2 := e.Attributes["sell"]
+			if ok1 || ok2 {
+				if buy == "" {
+					buy = "-"
+				}
+				if sell == "" {
+					sell = "-"
+				}
+				out = fmt.Sprintf(FMT_SHOPITEM, name, buy, sell)
+			} else {
+				out = name
+			}
+
+		// ------------------------------------------------------------------------
+
+		// BRANCH REPLACEMENT -----------------------------------------------------
+
+		case "choice", "outcome", "success", "failure":
+			// Branch options behave as table rows if they have a 'section' attribute, or as regular text otherwise.
+			if _, ok := e.Attributes["section"]; ok {
+				// If there is no description, we autofill it.
+				var description string
+				if e.Content == "" {
+					description = e.Attributes["range"]
+					if description == "" {
+						description = e.Name
+					}
+				}
+				out = fmt.Sprintf(FMT_BRANCHOPTION, description, fmt.Sprintf(FMT_TURNTO, e.Attributes["section"]))
+			} else {
+				out = e.Content
+			}
+
+		// ------------------------------------------------------------------------
+
+		// TABLE REPLACEMENT ------------------------------------------------------
+
+		case "market", "choices", "outcomes":
+			// These are easy because they never contain any attributes.
+			// But! They do always contain more tags in them that act as table rows
+			// So I just make them a table to store the actual contents in
+			var content string
+			if e.Name == "market" {
+				content = FMT_SHOPHEADER + e.Content
+			} else {
+				content = e.Content
+			}
+			out = fmt.Sprintf(FMT_TABLE, e.Name, content)
+
+		// ------------------------------------------------------------------------
+
+		// STANDALONE REPLACEMENTS ------------------------------------------------
+		// These tags do not contain other tags within them
+		// So it is just a matter of checking if there is content
+		// And if there is none, replace it with a stock autofill string
+
+		case "resurrection":
+			if e.Content == "" {
+				out = fmt.Sprintf(FMT_RESURRECTION, e.Attributes["god"], e.Attributes["book"], e.Attributes["section"], e.Attributes["text"])
+			} else {
+				out = e.Content
+			}
+
+		case "header":
+			out = fmt.Sprintf(FMT_HEADER, e.Attributes["type"])
+
+		case "goto":
+			if e.Content == "" {
+				out = fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])
+			} else {
+				out = e.Content
+			}
+
+		case "random":
+			if e.Content == "" {
+				out = fmt.Sprintf(FMT_ROLL, e.Attributes["dice"])
+			} else {
+				out = e.Content
+			}
+
+		case "rankcheck":
+			if e.Content == "" {
+				out = fmt.Sprintf(FMT_ROLL, e.Attributes["dice"]) + "and try to do lower than your Rank"
+			} else {
+				out = e.Content
+			}
+
+		case "difficulty":
+			if e.Content == "" {
+				out = fmt.Sprintf(FMT_CHECK, e.Attributes["ability"], e.Attributes["level"])
+			} else {
+				out = e.Content
+			}
+
+		case "tick":
+			if e.Content == "" {
+				out = "tick the box"
+			} else {
+				out = e.Content
+			}
+
+		case "if":
+			// For some reason 'if' tags need to be mapped as paragraphs
+			out = fmt.Sprintf("<p>%s</p>", e.Content)
+
+
+		// ------------------------------------------------------------------------
+
+		// THE DEVIOUS GROUP TAG --------------------------------------------------
+
+		case "group":
+			// 'group' tags only render the content of their inner 'text' tag
+			// So I need to unmarshal that
+			var group Group
+			xml.Unmarshal([]byte(e.Content), &group)
+			out = group.Text
+
+		// ------------------------------------------------------------------------
+
+		// DELETED TAGS -----------------------------------------------------------
+
+		case "desc", "adjust":
+			// These tags are straight up deleted because they are not rendered in the game
+			return
+
+		// ------------------------------------------------------------------------
+
+		// IGNORED TAGS -----------------------------------------------------------
+
+		default:
+			// Unspecified tags are left as they are
+			out = e.String()
+
+		// ------------------------------------------------------------------------
+	}
+
+	// If there's a section attribute, add a link to that section
+	_, ok1 := e.Attributes["section"]
+	_, ok2 := e.Attributes["book"]
+
+	if ok1 && !ok2 {
+		out = fmt.Sprintf(FMT_LINK, e.Attributes["section"], out)
 	}
 	return
 }
