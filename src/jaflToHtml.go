@@ -55,9 +55,9 @@ const MENU =
 `<div class="menu">
 	<table>
 		<tr>
-			<th colspan="2">View Character Sheet</th>
-			<td colspan="1"><a href="#sheet1">Page 1</a></td>
-			<td colspan="1"><a href="#sheet2">Page 2</a></td>
+			<th colspan="2">Menu</th>
+			<td colspan="1"><a href="#sheet1">Sheet 1</a></td>
+			<td colspan="1"><a href="#sheet2">Sheet 2</a></td>
 		</tr>
 	</table>
 </div>
@@ -544,7 +544,7 @@ const OUTCOMES_FORMAT =
 const OUTCOME_FORMAT =
 `	<tr>
 		<td class="outcome-text">%s</td>
-		<td class="outcome-section"><a href="#%s">► turn to %s</a></td>
+		<td class="outcome-section">%s</td>
 	</tr>`
 
 const EQUIPMENT_FORMAT =	// in.Attributes["name"]	// Classes: weapon
@@ -652,13 +652,21 @@ func replace(in element) (out string) {
 		case "outcomes":
 			out = fmt.Sprintf(OUTCOMES_FORMAT, in.Content)
 		case "outcome":
-			out = fmt.Sprintf(OUTCOME_FORMAT, in.Attributes["range"], in.Attributes["section"], in.Attributes["section"])
-		case "success", "failure":
+			var content string
 			if in.Content == "" {
-				out = fmt.Sprintf(OUTCOME_FORMAT, capitalize(in.Name), in.Attributes["section"], in.Attributes["section"])
+				content = fmt.Sprintf(GOTO_FORMAT, in.Attributes["section"], in.Attributes["section"])
 			} else {
-				out = in.Content
+				content = in.Content
 			}
+			out = fmt.Sprintf(OUTCOME_FORMAT, in.Attributes["range"], content)
+		case "success", "failure":
+			var content string
+			if in.Content == "" {
+				content = fmt.Sprintf(GOTO_FORMAT, in.Attributes["section"], in.Attributes["section"])
+			} else {
+				content = in.Content
+			}
+			out = fmt.Sprintf(OUTCOME_FORMAT, capitalize(in.Name), content)
 		case "difficulty":
 			out = fmt.Sprintf(DIFFICULTY_FORMAT, in.Attributes["ability"], in.Attributes["level"])
 		case "rankcheck":
@@ -778,6 +786,12 @@ func replace(in element) (out string) {
 			out = fmt.Sprintf(P_FORMAT, in.Name, in.Content)
 		case "adjust":
 			out = ""
+		case "tick":
+			if in.Content == "" {
+				out = fmt.Sprintf(SPAN_FORMAT, in.Name, "tick a box")
+			} else {
+				out = fmt.Sprintf(SPAN_FORMAT, in.Name, in.Content)
+			}
 		default:
 			if *verbose {
 				fmt.Println("Unexpected XML tag:", in.Name)
