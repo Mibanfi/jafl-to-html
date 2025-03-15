@@ -35,6 +35,10 @@ Clone this repository, or download the zip file from Releases.
 - Download it and save it as "Cover.jpg" inside the book folder.
 - Run the program as before, but add the flag *-c* before you pass any arguments.
 - Save the output to pdf as per the steps above.
+### Integrating the character sheet
+- Donwload the character sheet from [here](http://www.sparkfurnace.com/fabled-lands/fl-extras/).
+- Rename it to 'Sheet.pdf' and move it into the book folder.
+- Run the program with the flag *-s*.
 ### Specifying a different name/place to save the output
 - Run the program as normal, but pass the flag *-o* immediately followed by the address where you'd like the output to be saved.
 

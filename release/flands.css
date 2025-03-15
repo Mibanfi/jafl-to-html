@@ -25,6 +25,11 @@
         margin: 0 !important;
         break-after: page;
     }
+
+    .footer {
+        position: fixed;
+        bottom: 0;
+    }
 }
 
 :not(:is(h1, h2, h3, h4)) {
@@ -37,19 +42,19 @@ table {
     margin-right: auto;
 }
 
-footer table {
+.footer table {
     min-height: 10%;
     width: 20%;
     outline: solid;
     table-layout: fixed;
 }
 
-footer table th {
+.footer table th {
     text-align: center;
     width: 100%;
 }
 
-footer table td {
+.footer table td {
     text-align: center;
     width: 100%
 }

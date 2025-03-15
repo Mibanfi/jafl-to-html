@@ -6,6 +6,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/gen2brain/go-fitz"
 )
 
 // --- CONSTANTS ---
@@ -30,7 +34,7 @@ const (
 
 const FORMAT_ATTACHMENT =
 `
-<img src="%s"></img>
+<img src="%s" id="%s"></img>
 `
 
 const HEAD =
@@ -41,19 +45,23 @@ const HEAD =
 const COVER = "Cover.jpg"
 
 const SHEET_ADDRESS = "http://www.sparkfurnace.com/wp-content/media/Adventure-Sheets-FL%s.pdf"
+const SHEET1_NAME = "sheet1.jpg"
+const SHEET2_NAME = "sheet2.jpg"
+const SHEET_PDF_NAME = "Sheet.pdf"
 
-const FOOTER = ""
-// `<footer>
-	// <table>
-		// <tr>
-			// <th colspan="2">View Character Sheet</th>
-		// </tr>
-		// <tr>
-			// <td colspan="1"><a href="#sheet1">Page 1</a></td>
-			// <td colspan="1"><a href="#sheet2">Page 2</a></td>
-		// </tr>
-	// </table>
-// </footer>`
+const FOOTER =
+`<div class="footer">
+	<table>
+		<tr>
+			<th colspan="2">View Character Sheet</th>
+		</tr>
+		<tr>
+			<td colspan="1"><a href="#sheet1">Page 1</a></td>
+			<td colspan="1"><a href="#sheet2">Page 2</a></td>
+		</tr>
+	</table>
+</div>
+`
 
 // --- TYPES ---
 
@@ -70,6 +78,7 @@ var outputName *string
 var verbose *bool
 var cover *bool
 var skipIntro *bool
+var addSheet *bool
 
 // --- MAIN BODY ---
 
@@ -78,7 +87,8 @@ func main() {
 	outputName = flag.String("o", DEFAULT_OUTPUT, "Filepath to save output in")
 	verbose = flag.Bool("v", false, "Enable verbose output")
 	cover = flag.Bool("c", false, "Look for a cover file")
-	skipIntro = flag.Bool("s", false, "Skip the introductory pages")
+	skipIntro = flag.Bool("i", false, "Skip the introductory pages")
+	addSheet = flag.Bool("s", false, "Implement a character sheet into the document")
 	flag.Parse()
 
 	// Select the directory
@@ -112,7 +122,7 @@ func main() {
 	// Add cover page
 	if *cover {
 		fmt.Print("Importing cover page... ")
-		content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, filepath.Join(dir, COVER))))
+		content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, filepath.Join(dir, COVER), stripExt(COVER))))
 		fmt.Println("Done!")
 	}
 
@@ -138,7 +148,7 @@ func main() {
 		fn = filepath.Join(dir, fn)
 		switch filepath.Ext(fn) {
 			case IMAGE_EXT:
-				content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, fn)))
+				content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, fn, stripExt(fn))))
 				fmt.Println("imported as image")
 			case DESIRED_EXT:
 				page, errParse := parse(fn)
@@ -147,16 +157,60 @@ func main() {
 				fmt.Println("done!")
 			default:
 				fmt.Println("ignored")
+			}
+		if *addSheet {
+			content = slices.Concat(content, []byte(FOOTER))
 		}
 	}
 
 	// Replace inline tickboxes
 	content = []byte(strings.Replace(string(content), "{box} (if box ticked)", TICKBOX, ANY))
 
+	// Add sheet at the end
+	if *addSheet {
+		fmt.Print("Adding character sheet... ")
+		file, errOpen := os.Open(filepath.Join(dir, SHEET_PDF_NAME))
+		check(errOpen)
+		pdf, errDocument := fitz.NewFromReader(file)
+		check(errDocument)
+		sheet1, errConvert := pdf.Image(0)
+		check(errConvert)
+		sheet2, errConvert := pdf.Image(1)
+		check(errConvert)
+		var errSave error
+		errSave = save(sheet1, filepath.Join(dir, SHEET1_NAME))
+		check(errSave)
+		errSave = save(sheet2, filepath.Join(dir, SHEET2_NAME))
+		check(errSave)
+		content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, filepath.Join(dir, SHEET1_NAME), stripExt(SHEET1_NAME))))
+		content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, filepath.Join(dir, SHEET2_NAME), stripExt(SHEET2_NAME))))
+		fmt.Println("done")
+	} else {
+		fmt.Println("No character sheet was added as per requested.")
+	}
+
 	// Write all to output file
 	_, errWrite := output.Write(content)
 	check(errWrite)
 	fmt.Printf("\nDone! Results written to %s\n", *outputName)
+}
+
+func save(img *image.RGBA, filename string) error {
+	file, errCreate := os.Create(filename)
+	if errCreate != nil {
+		return errCreate
+	}
+	defer file.Close()
+	var o jpeg.Options
+	errEncode := jpeg.Encode(file, img, &o)
+	if errEncode != nil {
+		return errEncode
+	}
+	return nil
+}
+
+func stripExt(s string) string {
+	return strings.TrimSuffix(s, filepath.Ext(s))
 }
 
 func check(err error) {
