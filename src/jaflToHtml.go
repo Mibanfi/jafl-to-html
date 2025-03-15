@@ -513,7 +513,7 @@ const FMT_SECTION =
 `
 
 const FMT_LINK =
-`<a href="%s">%s</a>`
+`<a href="#%s">%s</a>`
 
 const FMT_TURNTO =
 `<span class="turn-to">► Turn to %s</span>`
