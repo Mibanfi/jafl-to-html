@@ -46,3 +46,9 @@ Clone this repository, or download the zip file from Releases.
 The source is a single file written in golang. You can build it like normal (if you've used golang, you know how to do it).
 
 There's also a CSS file containing various styling rules. It is necessary for the result to be properly formatted.
+
+## Secrets
+### Batch converting
+In *src*, together with the source files, there's a couple little bash files that I used for testing.
+- *convertAll.sh* lets you convert all books to pdf in a single strike. I designed it around my machine, but feel free to mess around and make your own version.
+- *buildAll.sh* is the one I use to build the program for all architectures.
