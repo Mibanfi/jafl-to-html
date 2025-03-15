@@ -788,7 +788,7 @@ func replace(in element) (out string) {
 			out = ""
 		case "tick":
 			if in.Content == "" {
-				out = fmt.Sprintf(SPAN_FORMAT, in.Name, "tick a box")
+				out = fmt.Sprintf(SPAN_FORMAT, in.Name, "tick the box")
 			} else {
 				out = fmt.Sprintf(SPAN_FORMAT, in.Name, in.Content)
 			}
