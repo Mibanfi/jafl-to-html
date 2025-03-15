@@ -622,7 +622,11 @@ func replace(in element) (out string) {
 			} else {
 				content = in.Content
 			}
-			out = fmt.Sprintf(GOTO_FORMAT, in.Attributes["section"], content)
+			if _, ok := in.Attributes["book"]; ok {
+				out = fmt.Sprintf(GOTO_FORMAT, "", content)
+			} else {
+				out = fmt.Sprintf(GOTO_FORMAT, in.Attributes["section"], content)
+			}
 		case "section":
 			var tickboxes string
 			var id string

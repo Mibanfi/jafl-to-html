@@ -39,18 +39,23 @@ table {
 }
 
 td, th {
+    text-align: center;
     padding: 5;
 }
 
 .menu {
     width: 100%;
-    margin: 10;
+    margin-top: 10;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 10;
 }
 
 .menu table {
     height: 5%;
     width: 40%;
-    outline: solid;
+    outline: none;
+    border-bottom: solid;
     table-layout: fixed;
     background-color: lightgrey
 }
@@ -120,7 +125,7 @@ h1, h2, h3 {
     display: table;
     padding: 10;
     table-layout: fixed;
-    width: 80%;
+    width: 100% !important;
 }
 
 .stats-sheet td {
@@ -159,3 +164,5 @@ h1, h2, h3 {
     font-weight: bold;
     background-color: lightgrey;
 }
+
+.
