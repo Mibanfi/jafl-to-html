@@ -1,7 +1,6 @@
 @media print {
     .page {
-        margin: 40;
-        padding: 40;
+        margin: 50;
         break-after: page;
     }
 
@@ -14,7 +13,7 @@
         padding: 0 !important;
     }
 
-    img {
+    .image {
         width: 100% !important;
         height: 100% !important;
         padding: 0 !important;
@@ -24,6 +23,10 @@
 
     .menu table {
         width: 100% !important;
+    }
+
+    img, table, p, span {
+        break-inside: avoid;
     }
 }
 
@@ -164,4 +167,7 @@ h1, h2, h3 {
     background-color: lightgrey;
 }
 
-.
+.item {
+    font-variant: small-caps;
+    font-weight: bold;
+}

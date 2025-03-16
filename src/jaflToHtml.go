@@ -34,7 +34,7 @@ const (
 
 const FORMAT_ATTACHMENT =
 `
-<img src="%s" id="%s"></img>
+<img src="%s" id="%s" class="image"></img>
 
 `
 
@@ -79,6 +79,7 @@ var verbose *bool
 var cover *bool
 var skipIntro *bool
 var addSheet *bool
+var dir string
 
 // --- MAIN BODY ---
 
@@ -92,7 +93,6 @@ func main() {
 	flag.Parse()
 
 	// Select the directory
-	var dir string
 	dir = flag.Arg(0)
 	if dir == "" {
 		dir = DEFAULT_DIR
@@ -539,7 +539,7 @@ const FMT_HEADER =
 
 const FMT_BRANCHOPTION =
 `<tr class="branch-option">
-	<td>%s</td>
+	<th>%s</th>
 	<td>%s</td>
 </tr>`
 
@@ -556,6 +556,24 @@ const FMT_ROLL =
 
 const FMT_CHECK =
 `make a %s check against a difficulty of %s`
+
+const FMT_ITEM =
+`<span class="item">%s</span>`
+
+const FMT_IMAGE =
+`<img src="%s"></img>`
+
+const FMT_FIGHT =
+`<table class="fight">
+<tr>
+<th colspan="3">%s</th>
+</tr>
+<tr>
+<td>Combat: %s</td>
+<td>Defence: %s</td>
+<td>Stamina: %s</td>
+</tr>
+</table>`
 
 type Group struct {
 	Text string `xml:",innerxml"`
@@ -597,9 +615,9 @@ func replace(e element) (out string) {
 		// Then we'll decide whether to display it as a shop item or a pickup
 		case "weapon", "armor", "item", "tool", "ship", "cargo", "buy", "sell", "trade", "gain", "lose":
 			var name string
-			classItem := []string{"weapon", "armor", "item", "tool", "ship", "cargo", "buy", "sell", "trade", "gain", "lose", "shards", "stamina", "rank", "ability"}
+			classItem := []string{"weapon", "armor", "item", "tool", "ship", "cargo", "stamina", "rank", "ability", "title"}
 			// If the tag has content, that content will always override anything else.
-			if e.Content != "" {
+			if strings.TrimSpace(e.Content) != "" {
 				name = e.Content
 			} else {
 				// Otherwise, we must first find the base name (before any modifiers).
@@ -615,39 +633,46 @@ func replace(e element) (out string) {
 							name = v
 						}
 					}
-					// Some rare cases do not have a name at all, and instead inherit it from their tag name.
-					// It is weird, I know, but some items in this game are generic so that you can flavour them as you like, especially weapons.
+					// Crews display the shard value so maybe
 					if name == "" {
-						name = e.Name
+						name = e.Attributes["shards"] + " shards"
+						// Some rare cases do not have a name at all, and instead inherit it from their tag name.
+						// It is weird, I know, but some items in this game are generic so that you can flavour them as you like, especially weapons.
+						if name == "" {
+							name = capitalize(e.Name)
+						}
 					}
 				}
 
-				// Now that we have found the base name, we must attach any attributes it may have
-				for k, v := range e.Attributes {
-					var attributes string
-					// Ships have a 'capacity' value that is not specified in tags because the game's internal logic keeps track of it
-					switch name {
-						case "barque":
-							attributes += "capacity: 1, "
-						case "brigantine":
-							attributes += "capacity: 2, "
-						case "galleon":
-							attributes += "capacity: 3, "
-					}
-					switch k {
-						case "initialCrew":
-							attributes += "initial crew: " + v + ", "
-						case "bonus":
-							attributes += "+" + v
-						case "ability":
-							attributes += "to " + v
-					}
-					if attributes != "" {
-						attributes = strings.TrimSuffix(attributes, ", ")
-						name += " (" + attributes + ")"
-					}
+				// Now that we have found the base name, we must attach any properties it may have
+				var properties string
+				// Ships have a 'capacity' value that is not specified in tags because the game's internal logic keeps track of it
+				switch name {
+					case "barque":
+						properties += "capacity: 1, "
+					case "brigantine":
+						properties += "capacity: 2, "
+					case "galleon":
+						properties += "capacity: 3, "
 				}
+				if _, ok := e.Attributes["initialCrew"]; ok {
+					properties += "initial crew: " + e.Attributes["initialCrew"] + ", "
+				}
+				if _, ok := e.Attributes["bonus"]; ok {
+					properties += "+" + e.Attributes["bonus"]
+				}
+				if _, ok := e.Attributes["ability"]; ok {
+					properties += " to " + e.Attributes["ability"]
+				}
+				if properties != "" {
+					properties = strings.TrimSuffix(properties, ", ")
+					name += " (" + properties + ")"
+				}
+				// Let us put the freshly baked item into a span with class 'item'
+				// This is important for formatting, as the books display items in a different font
+				name = fmt.Sprintf(FMT_ITEM, name)
 			}
+
 
 			// Done! Now we must decide to format it either as a shop item or a pickup.
 			// Fortunately for us, shop items are easily recognizable as they have a 'buy' or 'sell' attribute containing their price.
@@ -673,16 +698,21 @@ func replace(e element) (out string) {
 
 		case "choice", "outcome", "success", "failure":
 			// Branch options behave as table rows if they have a 'section' attribute, or as regular text otherwise.
+			// Except for outcomes which are always table rows
 			if _, ok := e.Attributes["section"]; ok {
 				// If there is no description, we autofill it.
 				var description string
-				if e.Content == "" {
+				if strings.TrimSpace(e.Content) == "" {
 					description = e.Attributes["range"]
 					if description == "" {
-						description = e.Name
+						description = capitalize(e.Name)
 					}
+				} else {
+					description = e.Content
 				}
-				out = fmt.Sprintf(FMT_BRANCHOPTION, description, fmt.Sprintf(FMT_TURNTO, e.Attributes["section"]))
+				out = fmt.Sprintf(FMT_BRANCHOPTION, description, fmt.Sprintf(FMT_LINK, e.Attributes["section"], fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])))
+			} else if e.Name == "outcome" {
+				out = fmt.Sprintf(FMT_BRANCHOPTION, e.Attributes["range"], e.Content)
 			} else {
 				out = e.Content
 			}
@@ -692,7 +722,7 @@ func replace(e element) (out string) {
 		// TABLE REPLACEMENT ------------------------------------------------------
 
 		case "market", "choices", "outcomes":
-			// These are easy because they never contain any attributes.
+			// These are easy because they never contain any Attributes.
 			// But! They do always contain more tags in them that act as table rows
 			// So I just make them a table to store the actual contents in
 			var content string
@@ -705,13 +735,17 @@ func replace(e element) (out string) {
 
 		// ------------------------------------------------------------------------
 
+
 		// STANDALONE REPLACEMENTS ------------------------------------------------
 		// These tags do not contain other tags within them
 		// So it is just a matter of checking if there is content
 		// And if there is none, replace it with a stock autofill string
 
+		case "fight":
+			out = fmt.Sprintf(FMT_FIGHT, e.Attributes["name"], e.Attributes["combat"], e.Attributes["defence"], e.Attributes["stamina"])
+
 		case "resurrection":
-			if e.Content == "" {
+			if strings.TrimSpace(e.Content) == "" {
 				out = fmt.Sprintf(FMT_RESURRECTION, e.Attributes["god"], e.Attributes["book"], e.Attributes["section"], e.Attributes["text"])
 			} else {
 				out = e.Content
@@ -721,35 +755,35 @@ func replace(e element) (out string) {
 			out = fmt.Sprintf(FMT_HEADER, e.Attributes["type"])
 
 		case "goto":
-			if e.Content == "" {
+			if strings.TrimSpace(e.Content) == "" {
 				out = fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])
 			} else {
 				out = e.Content
 			}
 
 		case "random":
-			if e.Content == "" {
+			if strings.TrimSpace(e.Content) == "" {
 				out = fmt.Sprintf(FMT_ROLL, e.Attributes["dice"])
 			} else {
 				out = e.Content
 			}
 
 		case "rankcheck":
-			if e.Content == "" {
+			if strings.TrimSpace(e.Content) == "" {
 				out = fmt.Sprintf(FMT_ROLL, e.Attributes["dice"]) + "and try to do lower than your Rank"
 			} else {
 				out = e.Content
 			}
 
 		case "difficulty":
-			if e.Content == "" {
+			if strings.TrimSpace(e.Content) == "" {
 				out = fmt.Sprintf(FMT_CHECK, e.Attributes["ability"], e.Attributes["level"])
 			} else {
 				out = e.Content
 			}
 
 		case "tick":
-			if e.Content == "" {
+			if strings.TrimSpace(e.Content) == "" {
 				out = "tick the box"
 			} else {
 				out = e.Content
@@ -758,6 +792,15 @@ func replace(e element) (out string) {
 		case "if":
 			// For some reason 'if' tags need to be mapped as paragraphs
 			out = fmt.Sprintf("<p>%s</p>", e.Content)
+
+		case "disease":
+			if strings.TrimSpace(e.Content) == "" {
+				out = e.Attributes["name"]
+			} else {
+				out = e.Content
+			}
+		case "image":
+			out = fmt.Sprintf(FMT_IMAGE, filepath.Join(dir, e.Attributes["file"]))
 
 
 		// ------------------------------------------------------------------------
@@ -775,7 +818,7 @@ func replace(e element) (out string) {
 
 		// DELETED TAGS -----------------------------------------------------------
 
-		case "desc", "adjust":
+		case "desc", "adjust", "effect":
 			// These tags are straight up deleted because they are not rendered in the game
 			return
 
