@@ -1,33 +1,76 @@
 @media print {
-    .page {
-        margin: 50;
-        break-after: page;
-    }
-
     @page {
-        margin: 0 !important;
+        margin: 1cm;
     }
 
-    html, body {
-        margin: 0 !important;
-        padding: 0 !important;
+    .page {
+        break-before: page;
     }
 
-    .image {
-        width: 100% !important;
-        height: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        break-after: page;
-    }
-
-    .menu table {
-        width: 100% !important;
-    }
-
-    img, table, p, span {
+    img, table, p, span, .image {
         break-inside: avoid;
     }
+
+    .codewords ul {
+        max-width: auto !important;
+        margin: auto !important;
+        list-style-type: "◻ " !important;
+        -moz-column-count: 2 !important;
+        -moz-column-gap: 100px !important;
+        -webkit-column-count: 2 !important;
+        -webkit-column-gap: 100px !important;
+        column-count: 2 !important;
+        column-gap: 100px !important;
+    }
+
+    .codewords li {
+        font-size: 200% !important;
+    }
+
+    .manifest td {
+        height: 60px !important;
+    }
+}
+
+* {
+    font-family: 'FreeSerif';
+}
+
+.title {
+    padding: 100;
+    font-family: 'Mathjax_AMS';
+    font-variant: small-caps;
+    font-weight: bold;
+    text-decoration: underline;
+    font-size: 300%;
+}
+
+.main-title {
+    font-size: 400% !important;
+}
+
+.map {
+    display: block;
+    object-fit: contain;
+    width: 100%;
+    height: 100%;
+}
+
+:is(h1, h2, h3, h4) {
+    font-weight: bold;
+    text-align: center;
+}
+
+h1 span{
+    font-size: xx-large;
+}
+
+h2 span {
+    font-size: x-large
+}
+
+.section-title {
+    text-decoration: underline;
 }
 
 :not(:is(h1, h2, h3, h4)) {
@@ -38,136 +81,100 @@
 table {
     margin-left: auto;
     margin-right: auto;
+    padding: 20;
     width: 80%;
 }
 
 td, th {
     text-align: center;
-    padding: 5;
+    padding: 10;
 }
 
-.menu {
-    width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    margin-bottom: 10;
-}
-
-.menu table {
-    height: 5%;
-    width: 40%;
-    outline: none;
-    border-bottom: solid;
-    table-layout: fixed;
-    background-color: lightgrey
-}
-
-.menu table th {
+:is(.stats-sheet, .market) :is(td, th) {
     text-align: center;
-    width: 100%;
+    outline: solid;
 }
 
-.menu table td {
-    text-align: center;
-    width: 100%
-}
-
-img {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    padding: 100;
-    max-width: 100%
-}
-
-h1, h2, h3 {
-    text-align: center;
-}
-
-.section-title {
-    text-align: center;
-    text-decoration: underline;
-    font-size: x-large;
-}
-
-.tickboxes {
-    font-size: x-large;
-}
-
-.choices, .outcomes {
-    border-spacing: 20
+:is(.stats-sheet, .market) th {
+    background-color: lightgrey;
 }
 
 .fight {
-    display: table;
-    padding: 10;
-    table-layout: fixed;
-    width: 50%;
-}
-
-.fight td {
-    text-align: center;
     font-weight: bold;
-    width: 100%;
 }
 
-.fight th {
-    text-align: center;
+.menu {
+    margin-right: 2px;
+    margin-left: 2px;
+    margin-top: 2px;
+    margin-bottom: 40;
+    background-color: lightgrey;
+    outline: solid;
+    outline-width: 2px;
+}
+
+.item, .resurrection, .codewords li {
+    font-variant: small-caps;
     font-weight: bold;
-    font-size: larger;
-    width: 100%;
 }
 
-.resurrection {
-    font-weight: bold;
-    text-transform: uppercase;
+.codewords ul {
+    margin-top: 80px;
+    width: 60%;
+    margin-left: 20%;
+    margin-right: 20%;
+    list-style-type: "◻ ";
+    -moz-column-count: 4;
+    -moz-column-gap: 20px;
+    -webkit-column-count: 4;
+    -webkit-column-gap: 20px;
+    column-count: 4;
+    column-gap: 20px;
 }
 
-.stats-sheet {
-    display: table;
-    padding: 10;
-    table-layout: fixed;
+.codewords li {
+    font-size: x-large;
+}
+
+.manifest td {
+    height: 45px;
+    outline: solid;
+}
+
+.sheet .field {
+    outline: solid;
+    background-color: lightgrey;
+    height: 50px;
+}
+
+.sheet .large {
+    height: 300px;
+}
+
+.sheet .medium {
+    height: 200px;
+}
+
+.sheet .possession {
+    height: 50px;
+    border-bottom: solid;
+}
+
+.sheet .ability {
+    height: 70px;
+    width: 50px;
+}
+
+.sheet table {
+    padding: 0 !important;
     width: 100% !important;
 }
 
-.stats-sheet td {
-    outline: solid;
-    text-align: center;
-    text-transform: capitalize;
-}
-
-.stats-sheet th {
-    outline: solid;
-    text-align: center;
-    text-transform: capitalize;
-    font-weight: bold;
-    background-color: lightgrey;
-}
-
-.market {
-    display: table;
-    margin-left: auto;
-    margin-right: auto;
-    padding: 10;
+.sheet-table {
     table-layout: fixed;
-    width: 80%;
+    width: 100%;
 }
 
-.market td {
-    outline: solid;
-    text-align: center;
-    text-transform: capitalize;
-}
-
-.market th {
-    outline: solid;
-    text-align: center;
-    text-transform: capitalize;
-    font-weight: bold;
-    background-color: lightgrey;
-}
-
-.item {
-    font-variant: small-caps;
-    font-weight: bold;
+.sheet-column {
+    padding: 20;
 }

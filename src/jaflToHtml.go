@@ -1,13 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
-	"image"
-	"image/jpeg"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-
-	"github.com/gen2brain/go-fitz"
 )
 
 // --- CONSTANTS ---
@@ -24,40 +21,92 @@ import (
 const DEFAULT_DIR = "."
 const DEFAULT_OUTPUT = "output.html"
 const DESIRED_EXT = ".xml"
-const IMAGE_EXT = ".JPG"
+const ZIP_EXT = ".zip"
 
 const ANY = -1
 
-const (
-	ERR_BAD_CLOSE = "Error: <%s> is being closed, but wasn't the last element opened"
-)
-
-const FORMAT_ATTACHMENT =
+const MAP_ATTACHMENT =
 `
-<img src="%s" id="%s" class="image"></img>
+<img src="%s" id="%s" class="page map"></img>
 
+`
+
+const BOOK_TITLE =
+`
+<div class="page">
+	<h1 class="title">%s</h1>
+</div>
 `
 
 const HEAD =
 `<head>
 	<link rel="stylesheet" href="flands.css">
-	<link rel="stylesheet" href="font-settings.css">
+	<link rel="stylesheet" href="personal.css">
+
+	<style>
+		@media print {
+			@page {
+				@top-center {
+					content: element(menu);
+				}
+			}
+		}
+
+		#menu {
+			position: running(header);
+		}
+	</style>
 </head>`
 
-const COVER = "Cover.jpg"
+const COVER_NAME = "Cover.html"
+const SHEET_NAME = "Sheet.html"
+const MANIFEST_NAME = "Manifest.html"
+const CODEWORDS_NAME = "Codewords%s.html"
+const WORLDMAP_NAME = "global.jpg"
+const RULES_NAME = "Rules.xml"
+const QUICKRULES_NAME = "QuickRules.xml"
 
-const SHEET_ADDRESS = "http://www.sparkfurnace.com/wp-content/media/Adventure-Sheets-FL%s.pdf"
-const SHEET1_NAME = "sheet1.jpg"
-const SHEET2_NAME = "sheet2.jpg"
-const SHEET_PDF_NAME = "Sheet.pdf"
+const BEFORE = true
+const AFTER = false
 
 const MENU =
-`<div class="menu">
+`<div class="menu" id="menu">
 	<table>
 		<tr>
-			<th colspan="2">Menu</th>
-			<td colspan="1"><a href="#sheet1">Sheet 1</a></td>
-			<td colspan="1"><a href="#sheet2">Sheet 2</a></td>
+			<th colspan="4"><a href="#sheet">Adventure Sheet</a></th>
+			<th colspan="4"><a href="#manifest">Ship's Manifest</a></th>
+		</tr>
+		<tr>
+			<th colspan="2">Codewords:</th>
+			<td><a href="#cd1">A</a></td>
+			<td><a href="#cd2">B</a></td>
+			<td><a href="#cd3">C</a></td>
+			<td><a href="#cd4">D</a></td>
+			<td><a href="#cd5">E</a></td>
+			<td><a href="#cd6">F</a></td>
+		</tr>
+		<tr>
+			<th colspan="1">Maps:</th>
+			<td><a href="#map-world">World</a></td>
+			<td><a href="#map-sokara">Sokara</a></td>
+			<td><a href="#map-golnir">Golnir</a></td>
+			<td><a href="#map-violet-sea">Violet Sea</a></td>
+			<td><a href="#map-great-steppes">Great Steppes</a></td>
+			<td><a href="#map-uttaku">Uttaku</a></td>
+			<td><a href="#map-akatsurai">Akatsurai</a></td>
+		</tr>
+	</table>
+</div>
+`
+const MENU_SINGULAR =	// book number, region name (linkified), region name
+`<div class="menu" id="menu">
+	<table>
+		<tr>
+			<th><a href="#sheet">Adventure Sheet</a></th>
+			<th><a href="#manifest">Ship's Manifest</a></th>
+			<th><a href="#cd%s">Codewords</a></th>
+			<th><a href="#map-world">World Map</a></th>
+			<th><a href="#map-%s">%s Map</a></th>
 		</tr>
 	</table>
 </div>
@@ -73,144 +122,273 @@ type element struct {
 
 type stack []element
 
-// --- FLAGS ---
-var outputName *string
-var verbose *bool
-var cover *bool
-var skipIntro *bool
-var addSheet *bool
+var root string
+var output string
 var dir string
-
-// --- MAIN BODY ---
-
-func main() {
-	// Assign flags
-	outputName = flag.String("o", DEFAULT_OUTPUT, "Filepath to save output in")
-	verbose = flag.Bool("v", false, "Enable verbose output")
-	cover = flag.Bool("c", false, "Look for a cover file")
-	skipIntro = flag.Bool("i", false, "Skip the introductory pages")
-	addSheet = flag.Bool("s", false, "Implement a character sheet into the document")
-	flag.Parse()
-
-	// Select the directory
-	dir = flag.Arg(0)
-	if dir == "" {
-		dir = DEFAULT_DIR
-		fmt.Print("No directory specified. Operating in the current directory.\n")
-	}
-
-	// Create a sorted slice
-	var filenames []string
-	readDir, readErr := os.ReadDir(dir)
-	check(readErr)
-	for _, f :=  range readDir {
-		filenames = append(filenames, f.Name())
-	}
-	slices.SortFunc(filenames, betterSort)
-
-	// Create an output file
-	if *outputName == DEFAULT_OUTPUT {
-		fmt.Printf("No output file specified. Output will be saved in %s.\n", DEFAULT_OUTPUT)
-	}
-	output, errCreate := os.Create(*outputName)
-	check(errCreate)
-
-	// Setup content slice and add head
-	var content []byte
-	content = []byte(HEAD)
-
-	// Add cover page
-	if *cover {
-		fmt.Print("Importing cover page... ")
-		content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, filepath.Join(dir, COVER), stripExt(COVER))))
-		fmt.Println("Done!")
-	}
-
-	// Import Adventurers.xml
-	fmt.Printf("Processing file %s... ", ADVENTURERS)
-	updateStats(filepath.Join(dir, ADVENTURERS))
-	fmt.Println("loaded starting classes")
-
-	// Process all files
-	for _, fn := range filenames {
-		fmt.Printf("Processing file %s... ", fn)
-		if strings.Contains(fn, "temp") || strings.Contains(fn, "old") {
-			fmt.Println("ignored")
-			continue
-		}
-		if _, e := strconv.Atoi(strings.TrimSuffix(fn, filepath.Ext(fn))); e != nil && *skipIntro {
-			fmt.Println("ignored as per skipIntro flag")
-			continue
-		}
-		if fn == ADVENTURERS {
-			continue
-		}
-		fn = filepath.Join(dir, fn)
-		switch filepath.Ext(fn) {
-			case IMAGE_EXT:
-				content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, fn, stripExt(fn))))
-				fmt.Println("imported as image")
-			case DESIRED_EXT:
-				page, errParse := parse(fn)
-				check(errParse)
-				if *addSheet {
-					content = slices.Concat(content, []byte(MENU))
-				}
-				content = slices.Concat(content, []byte(page))
-				fmt.Println("done!")
-			default:
-				fmt.Println("ignored")
-		}
-	}
-
-	// Replace inline tickboxes
-	content = []byte(strings.Replace(string(content), "{box} (if box ticked)", TICKBOX, ANY))
-
-	// Add sheet at the end
-	if *addSheet {
-		fmt.Print("Adding character sheet... ")
-		file, errOpen := os.Open(filepath.Join(dir, SHEET_PDF_NAME))
-		check(errOpen)
-		pdf, errDocument := fitz.NewFromReader(file)
-		check(errDocument)
-		sheet1, errConvert := pdf.Image(0)
-		check(errConvert)
-		sheet2, errConvert := pdf.Image(1)
-		check(errConvert)
-		var errSave error
-		errSave = save(sheet1, filepath.Join(dir, SHEET1_NAME))
-		check(errSave)
-		errSave = save(sheet2, filepath.Join(dir, SHEET2_NAME))
-		check(errSave)
-		content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, filepath.Join(dir, SHEET1_NAME), stripExt(SHEET1_NAME))))
-		content = slices.Concat(content, []byte(fmt.Sprintf(FORMAT_ATTACHMENT, filepath.Join(dir, SHEET2_NAME), stripExt(SHEET2_NAME))))
-		fmt.Println("done")
-	} else {
-		fmt.Println("No character sheet was added as per requested.")
-	}
-
-	// Write all to output file
-	_, errWrite := output.Write(content)
-	check(errWrite)
-	fmt.Printf("\nDone! Results written to %s\n", *outputName)
+var book int
+var region = [...]string{"", "Sokara", "Golnir", "Violet Sea", "Great Steppes", "Uttaku", "Akatsurai"}
+var title = [...]string{
+	"",
+	"The War-Torn Kingdom",
+	"Cities of Gold and Glory",
+	"Over the Blood-Dark Sea",
+	"The Plains of Howling Darkness",
+	"The Court of Hidden Faces",
+	"Lords of the Rising Sun",
 }
 
-func save(img *image.RGBA, filename string) error {
-	file, errCreate := os.Create(filename)
-	if errCreate != nil {
-		return errCreate
+// Flags
+var b *int
+
+func main() {
+	b = flag.Int("b", 0, "Specify a single book number to process")
+
+	flag.Parse()
+
+	// Define the root directory
+	root = flag.Arg(0)
+	if root == "" {
+		root = DEFAULT_DIR
+		fmt.Println("Directory not defined. Operating in the current directory...")
 	}
-	defer file.Close()
-	var o jpeg.Options
-	errEncode := jpeg.Encode(file, img, &o)
-	if errEncode != nil {
-		return errEncode
+
+	// Define the output file
+	output = flag.Arg(1)
+	if output == "" {
+		output = DEFAULT_OUTPUT
+		fmt.Println("Output file not specified. Output will be saved in", DEFAULT_OUTPUT)
 	}
-	return nil
+
+	// List all book directories
+	var books []string
+	readDir, readErr := os.ReadDir(root)
+	check(readErr)
+	for _, f :=  range readDir {
+		if filepath.Ext(f.Name()) == ZIP_EXT {
+			books = append(books, f.Name())
+		}
+	}
+	slices.Sort(books)
+
+	// Unzip all book directories
+	if existDir("book1", "book2", "book3", "book4", "book5", "book6") {
+		fmt.Println("Located book folders.")
+	} else {
+		fmt.Println("Book folders not found. Extracting from root...")
+		for _, d := range books {
+			fmt.Println("Extracting", d)
+			// Make a directory to store the extracted files
+			os.Mkdir(stripExt(d), 0700)
+
+			// Open the archive
+			r, err := zip.OpenReader(filepath.Join(root, d))
+			check(err)
+
+			// Cycle through all files in archive
+			for _, f := range r.File {
+				fmt.Print("Extracting ", f.Name, "... ")
+				// Open the file
+				rc, err := f.Open()
+				check(err)
+
+				// Save the file
+				rb, err := os.Create(filepath.Join(stripExt(d), f.Name))
+				check(err)
+				_, err = io.Copy(rb, rc)
+				check(err)
+				rc.Close()
+				rb.Close()
+				fmt.Println("done")
+			}
+			r.Close()
+		}
+	}
+
+	var content string
+
+	// Cycle through each book
+	for book, dir = range books {
+		book++
+		// If the -b flag was used, only operate on a certain book
+		if *b != 0 && book != *b{
+			continue
+		}
+		dir = stripExt(dir)
+		fmt.Printf("\n--- CONVERTING BOOK %d ---\n", book)
+		fmt.Println("Directory:", dir)
+		fmt.Println()
+
+		// Import Adventurers.xml
+		fmt.Printf("Processing file %s... ", ADVENTURERS)
+		updateStats(filepath.Join(dir, ADVENTURERS))
+		fmt.Println("loaded starting classes")
+
+		// Make a sorted slice of all files in the book
+		var filenames []string
+		readDir, err := os.ReadDir(dir)
+		check(err)
+		for _, f :=  range readDir {
+			filenames = append(filenames, f.Name())
+		}
+		slices.SortFunc(filenames, betterSort)
+
+		// Add title page
+		fmt.Print("Adding Title... ")
+			content += fmt.Sprintf(BOOK_TITLE, title[book])
+		fmt.Println("Done")
+
+		// Add map
+		fmt.Print("Importing Map... ")
+			content += fmt.Sprintf(MAP_ATTACHMENT, filepath.Join(dir, region[book] + ".JPG"), "map-"+linkify(region[book]))
+		fmt.Println("done")
+
+		// Process all files
+		for _, fn := range filenames {
+			fmt.Printf("Processing file %s... ", fn)
+			if strings.Contains(fn, "temp") || strings.Contains(fn, "old") || fn == ADVENTURERS{
+				fmt.Println("ignored")
+				continue
+			}
+			if fn == ADVENTURERS {
+				continue
+			}
+			fn = filepath.Join(dir, fn)
+			switch filepath.Ext(fn) {
+				case DESIRED_EXT:
+					page, err := parse(fn)
+					check(err)
+					content += page
+					fmt.Println("done!")
+				default:
+					fmt.Println("ignored")
+			}
+		}
+
+		fmt.Print("--- DONE ---\n\n")
+	}
+
+	// Add various materials
+	fmt.Print("Importing Adventure Sheet... ")
+	load(SHEET_NAME, &content, AFTER)
+	fmt.Println("done")
+
+	fmt.Print("Importing Ship's Manifest... ")
+	load(MANIFEST_NAME, &content, AFTER)
+	fmt.Println("done")
+
+	fmt.Print("Importing World Map... ")
+	copyFromRoot(WORLDMAP_NAME)
+	content = fmt.Sprintf(MAP_ATTACHMENT, WORLDMAP_NAME, "map-world") + content
+	fmt.Println("done")
+
+	fmt.Print("Importing Quick Rules... ")
+	copyFromRoot(QUICKRULES_NAME)
+	parsedText, err := parse(QUICKRULES_NAME)
+	check(err)
+	content = parsedText + content
+	fmt.Println("done")
+
+	fmt.Print("Importing Rules... ")
+	copyFromRoot(RULES_NAME)
+	parsedText, err = parse(RULES_NAME)
+	check(err)
+	content = parsedText + content
+	fmt.Println("done")
+
+	fmt.Print("Importing Codewords... ")
+	if *b != 0 {
+		load(fmt.Sprintf(CODEWORDS_NAME, strconv.Itoa(*b)), &content, AFTER)
+	} else {
+		for i := 1; i <= 6; i++ {
+			load(fmt.Sprintf(CODEWORDS_NAME, strconv.Itoa(i)), &content, AFTER)
+		}
+	}
+	fmt.Println("done")
+
+	fmt.Print("Importing Cover... ")
+	load(COVER_NAME, &content, BEFORE)
+	fmt.Println("done")
+
+	// Add header
+	content = HEAD + content
+
+	// Prepare the output file
+	fmt.Print("Creating output file... ")
+	outFile, err := os.Create(output)
+	check(err)
+	defer outFile.Close()
+	fmt.Println("done")
+
+	// Save to HTML
+	reader := strings.NewReader(content)
+	fmt.Println("Saving to HTML...")
+	htmlFile, err := os.Create(output)
+	io.Copy(htmlFile, reader)
+	htmlFile.Close()
+	fmt.Println("Done")
+
+	fmt.Println("\nFinished! Output saved in ", output)
+}
+
+func copyFromRoot(filename string) {
+	_, err := os.Stat(filename)
+	if err != nil {
+		original, err := os.Open(filepath.Join(root, filename))
+		check(err)
+		defer original.Close()
+		copied, err := os.Create(filename)
+		check(err)
+		defer copied.Close()
+		io.Copy(copied, original)
+	}
+}
+
+func menu() string {
+	// Build the menu
+	if *b == 0 {
+		return MENU
+	} else {
+		return fmt.Sprintf(
+			MENU_SINGULAR,
+		     strconv.Itoa(*b),
+				   linkify(region[*b]),
+				   region[*b],
+		)
+	}
 }
 
 func stripExt(s string) string {
 	return strings.TrimSuffix(s, filepath.Ext(s))
+}
+
+func linkify(s string) (out string) {
+	for _, w := range strings.Fields(s) {
+		out += strings.ToLower(w) + "-"
+	}
+	out = strings.TrimSuffix(out, "-")
+	return
+}
+
+func existDir(names ...string) bool {
+	for _, s := range names {
+		_, err := os.Stat(s)
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func load(path string, content *string, before bool) {
+	file, err := os.Open(path)
+	check(err)
+	defer file.Close()
+	raw, err := io.ReadAll(file)
+	if before {
+		*content = string(raw) + *content
+	} else {
+		*content += string(raw)
+	}
 }
 
 func check(err error) {
@@ -249,14 +427,6 @@ func betterSort(a, b string) int {
 			return B
 		case (e1 != nil && e2 == nil):
 			return A
-	}
-
-	// Images go after all other non-numbered sections
-	switch {
-		case filepath.Ext(a) == IMAGE_EXT && filepath.Ext(b) != IMAGE_EXT:
-			return B
-		case filepath.Ext(b) == IMAGE_EXT && filepath.Ext(a) != IMAGE_EXT:
-			return A
 		default:
 			return strings.Compare(a, b)
 	}
@@ -268,7 +438,7 @@ func capitalize(in string) (out string) {
 		runes[0] = unicode.ToUpper(runes[0])
 		out += string(runes) + " "
 	}
-	out = out[:len(out)-1]
+	out = strings.TrimSpace(out)
 	return
 }
 
@@ -507,6 +677,7 @@ const TICKBOX = "◻"
 const FMT_SECTION =
 `
 <div class="page">
+%s
 <h2 id="%s"><span class="section-title">%s</span><span class="tickboxes">%s</span></h2>
 %s
 </div>
@@ -577,6 +748,12 @@ const FMT_FIGHT =
 
 type Group struct {
 	Text string `xml:",innerxml"`
+	Goto Goto `xml:"goto"`
+}
+
+type Goto struct {
+	Section string `xml:",section"`
+	Book string `xml:",book"`
 }
 
 func replace(e element) (out string) {
@@ -601,11 +778,12 @@ func replace(e element) (out string) {
 			}
 			if profession, ok := e.Attributes["profession"]; ok {
 				e.Content = (printStats(profession) + e.Content)
-				id = strings.Fields(e.Attributes["name"])[0]
+				id = strconv.Itoa(book) + "-" + strings.Fields(e.Attributes["name"])[0]
 			} else {
-				id = e.Attributes["name"]
+				id = strconv.Itoa(book) + "-" + e.Attributes["name"]
 			}
-			out = fmt.Sprintf(FMT_SECTION, id, e.Attributes["name"], tickboxes, e.Content)
+
+			out = fmt.Sprintf(FMT_SECTION, menu(), id, e.Attributes["name"], tickboxes, e.Content)
 
 		// ------------------------------------------------------------------------
 
@@ -639,10 +817,11 @@ func replace(e element) (out string) {
 						// Some rare cases do not have a name at all, and instead inherit it from their tag name.
 						// It is weird, I know, but some items in this game are generic so that you can flavour them as you like, especially weapons.
 						if name == "" {
-							name = capitalize(e.Name)
+							name = e.Name
 						}
 					}
 				}
+				name = capitalize(name)
 
 				// Now that we have found the base name, we must attach any properties it may have
 				var properties string
@@ -699,7 +878,7 @@ func replace(e element) (out string) {
 		case "choice", "outcome", "success", "failure":
 			// Branch options behave as table rows if they have a 'section' attribute, or as regular text otherwise.
 			// Except for outcomes which are always table rows
-			if _, ok := e.Attributes["section"]; ok {
+			if sc, ok := e.Attributes["section"]; ok {
 				// If there is no description, we autofill it.
 				var description string
 				if strings.TrimSpace(e.Content) == "" {
@@ -710,7 +889,12 @@ func replace(e element) (out string) {
 				} else {
 					description = e.Content
 				}
-				out = fmt.Sprintf(FMT_BRANCHOPTION, description, fmt.Sprintf(FMT_LINK, e.Attributes["section"], fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])))
+				if bk, ok := e.Attributes["book"]; ok {
+					sc = bk + "-" + sc
+				} else {
+					sc = strconv.Itoa(book) + "-" + sc
+				}
+				out = fmt.Sprintf(FMT_BRANCHOPTION, description, fmt.Sprintf(FMT_LINK, sc, fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])))
 			} else if e.Name == "outcome" {
 				out = fmt.Sprintf(FMT_BRANCHOPTION, e.Attributes["range"], e.Content)
 			} else {
@@ -752,7 +936,7 @@ func replace(e element) (out string) {
 			}
 
 		case "header":
-			out = fmt.Sprintf(FMT_HEADER, e.Attributes["type"])
+			out = fmt.Sprintf(FMT_HEADER, capitalize(e.Attributes["type"]))
 
 		case "goto":
 			if strings.TrimSpace(e.Content) == "" {
@@ -790,8 +974,7 @@ func replace(e element) (out string) {
 			}
 
 		case "if":
-			// For some reason 'if' tags need to be mapped as paragraphs
-			out = fmt.Sprintf("<p>%s</p>", e.Content)
+			out = strings.TrimSpace(e.Content)
 
 		case "disease":
 			if strings.TrimSpace(e.Content) == "" {
@@ -813,6 +996,7 @@ func replace(e element) (out string) {
 			var group Group
 			xml.Unmarshal([]byte(e.Content), &group)
 			out = group.Text
+			e.Attributes["section"], e.Attributes["book"] = group.Goto.Section, group.Goto.Book
 
 		// ------------------------------------------------------------------------
 
@@ -834,11 +1018,14 @@ func replace(e element) (out string) {
 	}
 
 	// If there's a section attribute, add a link to that section
-	_, ok1 := e.Attributes["section"]
-	_, ok2 := e.Attributes["book"]
+	sc, _ := e.Attributes["section"]
+	bk, _ := e.Attributes["book"]
 
-	if ok1 && !ok2 {
-		out = fmt.Sprintf(FMT_LINK, e.Attributes["section"], out)
+	switch {
+		case sc != "" && bk == "":
+			out = fmt.Sprintf(FMT_LINK, strconv.Itoa(book) + "-" + sc, out)
+		case sc != "" && bk != "":
+			out = fmt.Sprintf(FMT_LINK, bk + "-" + sc, out)
 	}
 	return
 }
@@ -968,41 +1155,41 @@ const STATS_FORMAT =	// p.Name, p.Abilities..., p.Stamina, p.Rank, p.Gold, start
 %s
 </h3>
 <table class="stats-sheet">
-<tr class="stats-abilities-header">
-<th class="stats-ability-label">Charisma</th>
-<th class="stats-ability-label">Combat</th>
-<th class="stats-ability-label">Magic</th>
-<th class="stats-ability-label">Sanctity</th>
-<th class="stats-ability-label">Scouting</th>
-<th class="stats-ability-label">Thievery</th>
+<tr>
+<th>Charisma</th>
+<th>Combat</th>
+<th>Magic</th>
+<th>Sanctity</th>
+<th>Scouting</th>
+<th>Thievery</th>
 </tr>
-<tr class="stats-abilities-values">
-<td class="stats-ability-value">%s</td>
-<td class="stats-ability-value">%s</td>
-<td class="stats-ability-value">%s</td>
-<td class="stats-ability-value">%s</td>
-<td class="stats-ability-value">%s</td>
-<td class="stats-ability-value">%s</td>
+<tr>
+<td>%s</td>
+<td>%s</td>
+<td>%s</td>
+<td>%s</td>
+<td>%s</td>
+<td>%s</td>
 </tr>
-<tr class="stats-common-header">
-<th class="stats-stamina-label" colspan="2">Stamina</th>
-<th class="stats-rank-label" colspan="2">Rank</th>
-<th class="stats-gold-label" colspan="2">Gold</th>
+<tr>
+<th colspan="2">Stamina</th>
+<th colspan="2">Rank</th>
+<th colspan="2">Gold</th>
 </tr>
-<tr class="stats-common-values">
-<td class="stats-stamina-value" colspan="2">%s</td>
-<td class="stats-rank-value" colspan="2">%s</td>
-<td class="stats-gold-value" colspan="2">%s</td>
+<tr>
+<td colspan="2">%s</td>
+<td colspan="2">%s</td>
+<td colspan="2">%s</td>
 </tr>
-<tr class="equipment-header">
-<th class="equipment-label" colspan="6">Starting equipment</th>
+<tr>
+<th colspan="6">Starting equipment</th>
 </tr>
 %s
 </table>`
 const STARTING_EQUIP_FORMAT =
-`<tr class="equipment-value">
-<th class="equipment-item-type" colspan="2">%s</td>
-<td class="equipment-item-name" colspan="4">%s</td>
+`<tr>
+<th colspan="2">%s</th>
+<td class="item" colspan="4">%s</td>
 </tr>`
 func printStats(name string) string {
 	var p Profession
@@ -1020,6 +1207,7 @@ func printStats(name string) string {
 	cha, com, mag, san, sco, thi := p.Abilities[0], p.Abilities[1], p.Abilities[2], p.Abilities[3], p.Abilities[4], p.Abilities[5]
 	for _, e := range p.Equipment {
 		var nameFull string
+		e.Name, e.Type = capitalize(e.Name), capitalize(e.Type)
 		if e.Bonus != "" {
 			nameFull = e.Name + " (+" + e.Bonus + ")"
 		} else {
