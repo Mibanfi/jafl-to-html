@@ -90,7 +90,7 @@ const MENU =
 			<td><a href="#map-world">World</a></td>
 			<td><a href="#map-sokara">Sokara</a></td>
 			<td><a href="#map-golnir">Golnir</a></td>
-			<td><a href="#map-violet-sea">Violet Sea</a></td>
+			<td><a href="#map-violet-ocean">Violet Ocean</a></td>
 			<td><a href="#map-great-steppes">Great Steppes</a></td>
 			<td><a href="#map-uttaku">Uttaku</a></td>
 			<td><a href="#map-akatsurai">Akatsurai</a></td>
@@ -126,7 +126,7 @@ var root string
 var output string
 var dir string
 var book int
-var region = [...]string{"", "Sokara", "Golnir", "Violet Sea", "Great Steppes", "Uttaku", "Akatsurai"}
+var region = [...]string{"", "Sokara", "Golnir", "Violet Ocean", "Great Steppes", "Uttaku", "Akatsurai"}
 var title = [...]string{
 	"",
 	"The War-Torn Kingdom",
