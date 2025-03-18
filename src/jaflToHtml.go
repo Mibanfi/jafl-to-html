@@ -1027,6 +1027,10 @@ func replace(e element) (out string) {
 		case sc != "" && bk != "":
 			out = fmt.Sprintf(FMT_LINK, bk + "-" + sc, out)
 	}
+
+	// Replace tickbox codes with tickboxes
+	out = strings.ReplaceAll(out, "{box} (if box ticked)", TICKBOX)
+
 	return
 }
 
