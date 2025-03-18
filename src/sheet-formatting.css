@@ -1,0 +1,42 @@
+.sheet .field {
+    outline: solid;
+    background-color: lightgrey;
+    height: 50px;
+}
+
+.sheet .large {
+    height: 300px;
+}
+
+.sheet .medium {
+    height: 200px;
+}
+
+.sheet .possession {
+    height: 50px;
+    border-bottom: solid;
+}
+
+.sheet .ability {
+    height: 70px;
+    width: 50px;
+}
+
+.sheet table {
+    padding: 0 !important;
+    width: 100% !important;
+}
+
+.sheet-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.sheet-column {
+    padding: 20;
+}
+
+.manifest td {
+    height: 45px;
+    outline: solid;
+}
