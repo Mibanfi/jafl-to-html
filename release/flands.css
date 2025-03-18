@@ -49,7 +49,7 @@
     font-size: 400% !important;
 }
 
-.map {
+.map, .attachment {
     display: block;
     object-fit: contain;
     width: 100%;

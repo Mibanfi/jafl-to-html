@@ -732,7 +732,7 @@ const FMT_ITEM =
 `<span class="item">%s</span>`
 
 const FMT_IMAGE =
-`<img src="%s"></img>`
+`<img class="attachment" src="%s"></img>`
 
 const FMT_FIGHT =
 `<table class="fight">
