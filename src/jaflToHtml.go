@@ -1012,7 +1012,11 @@ func replace(e element) (out string) {
 
 		case "tick":
 			if strings.TrimSpace(e.Content) == "" {
-				out = "tick the box"
+				if e.Attributes["codeword"] == "" {
+					out = "✓ Tick the box"
+				} else {
+					out = "✓ Tick the codeword " + fmt.Sprintf(FMT_ITEM, e.Attributes["codeword"])
+				}
 			} else {
 				out = e.Content
 			}
