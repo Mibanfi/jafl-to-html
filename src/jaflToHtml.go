@@ -127,7 +127,21 @@ var root string
 var output string
 var dir string
 var book int
-var region = [...]string{"", "Sokara", "Golnir", "Violet Ocean", "Great Steppes", "Uttaku", "Akatsurai"}
+var region = [...]string{
+	"",
+	"Sokara",
+	"Golnir",
+	"Violet Ocean",
+	"Great Steppes",
+	"Uttaku",
+	"Akatsurai",
+	"undefined",
+	"undefined",
+	"undefined",
+	"undefined",
+	"undefined",
+	"undefined",
+}
 var title = [...]string{
 	"",
 	"The War-Torn Kingdom",
@@ -136,6 +150,12 @@ var title = [...]string{
 	"The Plains of Howling Darkness",
 	"The Court of Hidden Faces",
 	"Lords of the Rising Sun",
+	"The Serpent-King's Domain",
+	"undefined",
+	"undefined",
+	"undefined",
+	"undefined",
+	"undefined",
 }
 
 // Flags
@@ -899,10 +919,8 @@ func replace(e element) (out string) {
 					if bk, ok := e.Attributes["book"]; ok {
 						sc = bk + "-" + sc
 						var bnumber int
-						if bnumber <= 6 {
-							bnumber, _ = strconv.Atoi(e.Attributes["book"])
-							section = section + " (" + title[bnumber] + ")"
-						}
+						bnumber, _ = strconv.Atoi(e.Attributes["book"])
+						section = section + " (" + title[bnumber] + ")"
 					} else {
 						sc = strconv.Itoa(book) + "-" + sc
 						section = sc
@@ -955,9 +973,7 @@ func replace(e element) (out string) {
 			if e.Attributes["book"] != "" {
 				var bnumber int
 				bnumber, _ = strconv.Atoi(e.Attributes["book"])
-				if bnumber <= 6 {
-					section = section + " (" + title[bnumber] + ")"
-				}
+				section = section + " (" + title[bnumber] + ")"
 			}
 			if strings.TrimSpace(e.Content) == "" {
 				out = fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])
