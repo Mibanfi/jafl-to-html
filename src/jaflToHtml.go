@@ -73,17 +73,18 @@ const MENU =
 `<div class="menu" id="menu">
 	<table>
 		<tr>
-			<th colspan="4"><a href="#sheet">Adventure Sheet</a></th>
-			<th colspan="4"><a href="#manifest">Ship's Manifest</a></th>
+			<th colspan="4">%s</th>
+			<th colspan="2"><a href="#sheet">Adventure Sheet</a></th>
+			<th colspan="2"><a href="#manifest">Ship's Manifest</a></th>
 		</tr>
 		<tr>
 			<th colspan="2">Codewords:</th>
-			<td><a href="#cd1">A</a></td>
-			<td><a href="#cd2">B</a></td>
-			<td><a href="#cd3">C</a></td>
-			<td><a href="#cd4">D</a></td>
-			<td><a href="#cd5">E</a></td>
-			<td><a href="#cd6">F</a></td>
+			<td><a href="#cd1">[A]</a></td>
+			<td><a href="#cd2">[B]</a></td>
+			<td><a href="#cd3">[C]</a></td>
+			<td><a href="#cd4">[D]</a></td>
+			<td><a href="#cd5">[E]</a></td>
+			<td><a href="#cd6">[F]</a></td>
 		</tr>
 		<tr>
 			<th colspan="1">Maps:</th>
@@ -267,6 +268,8 @@ func main() {
 		fmt.Print("--- DONE ---\n\n")
 	}
 
+	book = 0
+
 	// Add various materials
 	fmt.Print("Importing Adventure Sheet... ")
 	load(SHEET_NAME, &content, AFTER)
@@ -346,13 +349,13 @@ func copyFromRoot(filename string) {
 func menu() string {
 	// Build the menu
 	if *b == 0 {
-		return MENU
+		return fmt.Sprintf(MENU, title[book])
 	} else {
 		return fmt.Sprintf(
 			MENU_SINGULAR,
-		     strconv.Itoa(*b),
-				   linkify(region[*b]),
-				   region[*b],
+			strconv.Itoa(*b),
+			linkify(region[*b]),
+			region[*b],
 		)
 	}
 }
@@ -708,12 +711,6 @@ const FMT_HEADER =
 <th colspan="6">%s</th>
 </tr>`
 
-const FMT_BRANCHOPTION =
-`<tr class="branch-option">
-	<th>%s</th>
-	<td>%s</td>
-</tr>`
-
 const FMT_TABLE =
 `<table class="%s">
 %s
@@ -723,10 +720,10 @@ const FMT_RESURRECTION =
 `<span class="resurrection">Resurrection of %s: Book %s, Section %s (%s)</span>`
 
 const FMT_ROLL =
-`roll %s dice`
+`■ Roll %s dice`
 
 const FMT_CHECK =
-`make a %s check against a difficulty of %s`
+`■ Make a %s check against a difficulty of %s`
 
 const FMT_ITEM =
 `<span class="item">%s</span>`
@@ -745,6 +742,11 @@ const FMT_FIGHT =
 <td>Stamina: %s</td>
 </tr>
 </table>`
+
+const FMT_CACHE =
+`<h4>%s</h4>
+<div class="cache"></div>
+`
 
 type Group struct {
 	Text string `xml:",innerxml"`
@@ -791,9 +793,9 @@ func replace(e element) (out string) {
 
 		// If the tag is an item, we need to assemble the item's name.
 		// Then we'll decide whether to display it as a shop item or a pickup
-		case "weapon", "armor", "item", "tool", "ship", "cargo", "buy", "sell", "trade", "gain", "lose":
+		case "weapon", "armour", "item", "tool", "ship", "cargo", "buy", "sell", "trade", "gain", "lose":
 			var name string
-			classItem := []string{"weapon", "armor", "item", "tool", "ship", "cargo", "stamina", "rank", "ability", "title"}
+			classItem := []string{"weapon", "armour", "item", "tool", "ship", "cargo", "stamina", "rank", "ability", "title"}
 			// If the tag has content, that content will always override anything else.
 			if strings.TrimSpace(e.Content) != "" {
 				name = e.Content
@@ -809,16 +811,16 @@ func replace(e element) (out string) {
 					for k, v := range e.Attributes {
 						if slices.Contains(classItem, k) {
 							name = v
+							break
 						}
 					}
 					// Crews display the shard value so maybe
-					if name == "" {
+					if name == "" && e.Attributes["shards"] != "" {
 						name = e.Attributes["shards"] + " shards"
+					} else if name == "" {
 						// Some rare cases do not have a name at all, and instead inherit it from their tag name.
 						// It is weird, I know, but some items in this game are generic so that you can flavour them as you like, especially weapons.
-						if name == "" {
-							name = e.Name
-						}
+						name = e.Name
 					}
 				}
 				name = capitalize(name)
@@ -827,11 +829,11 @@ func replace(e element) (out string) {
 				var properties string
 				// Ships have a 'capacity' value that is not specified in tags because the game's internal logic keeps track of it
 				switch name {
-					case "barque":
+					case "Barque":
 						properties += "capacity: 1, "
-					case "brigantine":
+					case "Brigantine":
 						properties += "capacity: 2, "
-					case "galleon":
+					case "Galleon":
 						properties += "capacity: 3, "
 				}
 				if _, ok := e.Attributes["initialCrew"]; ok {
@@ -878,25 +880,28 @@ func replace(e element) (out string) {
 		case "choice", "outcome", "success", "failure":
 			// Branch options behave as table rows if they have a 'section' attribute, or as regular text otherwise.
 			// Except for outcomes which are always table rows
-			if sc, ok := e.Attributes["section"]; ok {
-				// If there is no description, we autofill it.
-				var description string
-				if strings.TrimSpace(e.Content) == "" {
-					description = e.Attributes["range"]
-					if description == "" {
-						description = capitalize(e.Name)
+			if _, ok := e.Attributes["section"]; ok || e.Name == "outcome" {
+				out += "<tr class=\"branchoption\">\n"
+				if e.Name == "success" || e.Name == "failure" {
+					out += fmt.Sprintf("<th>%s</th>", capitalize(e.Name))
+				} else if rg, ok := e.Attributes["range"]; ok {
+					out += fmt.Sprintf("<th>%s</th>", rg)
+				} else {
+					out += "<th></th>"
+				}
+				if e.Content != "" {
+					out += fmt.Sprintf("<td>%s</td>", e.Content)
+				} else {
+					out += "<td></td>"
+				}
+				if sc, ok := e.Attributes["section"]; ok {
+					if bk, ok := e.Attributes["book"]; ok {
+						sc = bk + "-" + sc
+					} else {
+						sc = strconv.Itoa(book) + "-" + sc
 					}
-				} else {
-					description = e.Content
+					out += fmt.Sprintf("<td><a href=\"#%s\">%s</a></td>", sc, fmt.Sprintf(FMT_TURNTO, e.Attributes["section"]))
 				}
-				if bk, ok := e.Attributes["book"]; ok {
-					sc = bk + "-" + sc
-				} else {
-					sc = strconv.Itoa(book) + "-" + sc
-				}
-				out = fmt.Sprintf(FMT_BRANCHOPTION, description, fmt.Sprintf(FMT_LINK, sc, fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])))
-			} else if e.Name == "outcome" {
-				out = fmt.Sprintf(FMT_BRANCHOPTION, e.Attributes["range"], e.Content)
 			} else {
 				out = e.Content
 			}
@@ -945,8 +950,11 @@ func replace(e element) (out string) {
 				out = e.Content
 			}
 
-		case "random":
+		case "random", "training":
 			if strings.TrimSpace(e.Content) == "" {
+				if e.Attributes["dice"] == "" {
+					e.Attributes["dice"] = "2"
+				}
 				out = fmt.Sprintf(FMT_ROLL, e.Attributes["dice"])
 			} else {
 				out = e.Content
@@ -954,7 +962,10 @@ func replace(e element) (out string) {
 
 		case "rankcheck":
 			if strings.TrimSpace(e.Content) == "" {
-				out = fmt.Sprintf(FMT_ROLL, e.Attributes["dice"]) + "and try to do lower than your Rank"
+				if e.Attributes["dice"] == "" {
+					e.Attributes["dice"] = "2"
+				}
+				out = fmt.Sprintf(FMT_ROLL, e.Attributes["dice"]) + " and try to do lower than your Rank"
 			} else {
 				out = e.Content
 			}
@@ -984,6 +995,11 @@ func replace(e element) (out string) {
 			}
 		case "image":
 			out = fmt.Sprintf(FMT_IMAGE, filepath.Join(dir, e.Attributes["file"]))
+
+		case "itemcache":
+			out = fmt.Sprintf(FMT_CACHE, e.Attributes["text"])
+		case "moneycache":
+			out = "<p><i>Please write the amount in your sheet instead.</i></p>"
 
 
 		// ------------------------------------------------------------------------
