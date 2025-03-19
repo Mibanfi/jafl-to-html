@@ -993,11 +993,27 @@ func replace(e element) (out string) {
 			} else {
 				out = e.Content
 			}
+
+		case "reroll":
+			if e.Content == "" {
+				out = "■ Reroll"
+			} else {
+				out = e.Content
+			}
+
+		case "return":
+			if e.Content == "" {
+				out = "► Go back to the section you came from."
+			} else {
+				out = e.Content
+			}
+
 		case "image":
 			out = fmt.Sprintf(FMT_IMAGE, filepath.Join(dir, e.Attributes["file"]))
 
 		case "itemcache":
 			out = fmt.Sprintf(FMT_CACHE, e.Attributes["text"])
+
 		case "moneycache":
 			out = "<p><i>Please write the amount in your sheet instead.</i></p>"
 
