@@ -915,17 +915,17 @@ func replace(e element) (out string) {
 					out += "<td></td>"
 				}
 				if sc, ok := e.Attributes["section"]; ok {
-					var section string
+					var scprint string
 					if bk, ok := e.Attributes["book"]; ok {
 						sc = bk + "-" + sc
 						var bnumber int
 						bnumber, _ = strconv.Atoi(e.Attributes["book"])
-						section = section + " (" + title[bnumber] + ")"
+						scprint = e.Attributes["section"] + " (" + title[bnumber] + ")"
 					} else {
 						sc = strconv.Itoa(book) + "-" + sc
-						section = sc
+						scprint = e.Attributes["section"]
 					}
-					out += fmt.Sprintf("<td><a href=\"#%s\">%s</a></td>", sc, fmt.Sprintf(FMT_TURNTO, section))
+					out += fmt.Sprintf("<td><a href=\"#%s\">%s</a></td>", sc, fmt.Sprintf(FMT_TURNTO, scprint))
 				}
 			} else {
 				out = e.Content
@@ -969,14 +969,16 @@ func replace(e element) (out string) {
 			out = fmt.Sprintf(FMT_HEADER, capitalize(e.Attributes["type"]))
 
 		case "goto":
-			var section string
+			var scprint string
 			if e.Attributes["book"] != "" {
 				var bnumber int
 				bnumber, _ = strconv.Atoi(e.Attributes["book"])
-				section = section + " (" + title[bnumber] + ")"
+				scprint = e.Attributes["section"] + " (" + title[bnumber] + ")"
+			} else {
+				scprint = e.Attributes["section"]
 			}
 			if strings.TrimSpace(e.Content) == "" {
-				out = fmt.Sprintf(FMT_TURNTO, e.Attributes["section"])
+				out = fmt.Sprintf(FMT_TURNTO, scprint)
 			} else {
 				out = e.Content
 			}
